@@ -328,6 +328,8 @@ func OnRamp() {
 			"wello_fee_fixed":    200.0,
 			"merchant_fee_rate":  0.01,
 			"merchant_fee_fixed": 300.0,
+			"coupon":             200.0,
+			"coupon_currency":    "KES",
 			// intermediate variables
 			"fiat_fee":     0.0,
 			"wello_fee":    0.0,
@@ -345,6 +347,7 @@ func OnRamp() {
 		`wello_fee = amount * wello_fee_rate + wello_fee_fixed; $(wello_fee, fiat_currency)`,             // wello fee
 		`merchant_fee = amount * merchant_fee_rate + merchant_fee_fixed; $(merchant_fee, fiat_currency)`, // merchant fee
 		`total_fee = fiat_fee + wello_fee + merchant_fee + network_fee`,                                  // total fee in KES
+		`total_fee = total_fee - coupon; coupon > 0 ? $(-coupon, coupon_currency) : nil`,                 // apply coupon if it is greater than 0
 		`fee_in_usd = total_fee * kes_to_usd_rate`,                                                       // total fee in USD
 		`[$(-total_fee, fiat_currency), $(fee_in_usd, "USD")]`,                                           // return the total fee in USD and KES
 	).Execute()
