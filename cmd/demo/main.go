@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 
-	fee_engine "github.com/ethan/fee-engine/src"
+	fee_engine "github.com/noru/fee-engine"
 	"github.com/shopspring/decimal"
 )
 

@@ -15,13 +15,13 @@ A fee calculation engine that supports expression-based fee rule computation.
 ### Installation
 
 ```bash
-go get github.com/ethan/fee-engine
+go get github.com/noru/fee-engine
 ```
 
 ### Basic Usage
 
 ```go
-import fee_engine "github.com/ethan/fee-engine/src"
+import fee_engine "github.com/noru/fee-engine"
 
 ctx := &fee_engine.Context{
     Vars: map[string]interface{}{
