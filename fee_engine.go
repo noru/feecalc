@@ -33,14 +33,14 @@ func (c *Context) Copy() *Context {
 }
 
 // SetVar sets a variable in the context
-func (c *Context) SetVar(key string, value interface{}) {
+func (c *Context) setVar(key string, value interface{}) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.Vars[key] = value
 }
 
 // GetVar gets a variable from the context
-func (c *Context) GetVar(key string) (interface{}, bool) {
+func (c *Context) getVar(key string) (interface{}, bool) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	val, ok := c.Vars[key]
@@ -107,6 +107,15 @@ func (e *FeeEngine) Reset() *FeeEngine {
 	return e
 }
 
+func (e *FeeEngine) SetVar(key string, value interface{}) *FeeEngine {
+	e.ctx.setVar(key, value)
+	return e
+}
+
+func (e *FeeEngine) GetVar(key string) (interface{}, bool) {
+	return e.ctx.getVar(key)
+}
+
 // Execute executes all remaining rules from the current position
 func (e *FeeEngine) Execute() (*ExecuteResult, error) {
 	remaining := len(e.rules) - e.ctx.lastExecutedRule
@@ -154,7 +163,7 @@ func (e *FeeEngine) ExecuteN(count int) (*ExecuteResult, error) {
 			}
 			if result.Context != nil {
 				for k, v := range result.Context.Vars {
-					e.ctx.SetVar(k, v)
+					e.ctx.setVar(k, v)
 				}
 			}
 		}

@@ -192,7 +192,7 @@ func TestFeeEngine_ContextUpdate(t *testing.T) {
 		t.Fatal("Expected context to be updated")
 	}
 
-	newValue, ok := result.Context.GetVar("value")
+	newValue, ok := result.Context.Vars["value"]
 	if !ok {
 		t.Fatal("Expected value to be set in context")
 	}
@@ -328,7 +328,7 @@ func TestFeeEngine_SideEffect(t *testing.T) {
 		t.Fatal("Expected context to be updated")
 	}
 
-	newCounter, ok := result.Context.GetVar("counter")
+	newCounter, ok := result.Context.Vars["counter"]
 	if !ok {
 		t.Fatal("Expected counter to be set in context")
 	}
@@ -359,7 +359,7 @@ func TestFeeEngine_AssignmentSyntax(t *testing.T) {
 		t.Fatal("Expected context to be updated")
 	}
 
-	newValue, ok := result.Context.GetVar("value")
+	newValue, ok := result.Context.Vars["value"]
 	if !ok {
 		t.Fatal("Expected value to be set in context")
 	}
@@ -388,7 +388,7 @@ func TestFeeEngine_AssignmentWithFeeItem(t *testing.T) {
 	}
 
 	// Check context update
-	newAmount, ok := result.Context.GetVar("amount")
+	newAmount, ok := result.Context.Vars["amount"]
 	if !ok {
 		t.Fatal("Expected amount to be set in context")
 	}
@@ -428,7 +428,7 @@ func TestFeeEngine_MultipleAssignments(t *testing.T) {
 		t.Fatal("Expected context to be updated")
 	}
 
-	newAmount, ok := result.Context.GetVar("amount")
+	newAmount, ok := result.Context.Vars["amount"]
 	if !ok {
 		t.Fatal("Expected amount to be set in context")
 	}
@@ -436,7 +436,7 @@ func TestFeeEngine_MultipleAssignments(t *testing.T) {
 		t.Errorf("Expected amount 2000.0, got %v", newAmount)
 	}
 
-	newRate, ok := result.Context.GetVar("rate")
+	newRate, ok := result.Context.Vars["rate"]
 	if !ok {
 		t.Fatal("Expected rate to be set in context")
 	}
@@ -641,7 +641,7 @@ func TestFeeEngine_GetContext(t *testing.T) {
 		t.Error("Expected GetContext to return the same context")
 	}
 
-	amount, ok := retrievedCtx.GetVar("amount")
+	amount, ok := engine.GetVar("amount")
 	if !ok {
 		t.Fatal("Expected amount to be in context")
 	}
@@ -680,7 +680,8 @@ func TestFeeEngine_ContextCopy(t *testing.T) {
 		t.Errorf("Expected 1 log, got %d", len(copy.Logs))
 	}
 
-	ctx.SetVar("amount", 2000.0)
+	engine := New(ctx)
+	engine.SetVar("amount", 2000.0)
 	if copy.Vars["amount"].(float64) != 1000.0 {
 		t.Error("Expected copy to be independent of original")
 	}
@@ -691,9 +692,10 @@ func TestFeeEngine_ContextSetVar(t *testing.T) {
 		Vars:     make(map[string]interface{}),
 		FeeItems: make([]FeeItem, 0),
 	}
+	engine := New(ctx)
 
-	ctx.SetVar("test", 123)
-	val, ok := ctx.GetVar("test")
+	engine.SetVar("test", 123)
+	val, ok := engine.GetVar("test")
 	if !ok {
 		t.Fatal("Expected test variable to be set")
 	}
@@ -1017,7 +1019,7 @@ func TestFeeEngine_Reset(t *testing.T) {
 	}
 
 	// Check that amount was modified
-	amountAfter, _ := ctx.GetVar("amount")
+	amountAfter, _ := engine.GetVar("amount")
 	if amountAfter.(float64) != 2000.0 {
 		t.Errorf("Expected amount 2000.0 after execution, got %v", amountAfter)
 	}
@@ -1026,12 +1028,12 @@ func TestFeeEngine_Reset(t *testing.T) {
 	engine.Reset()
 
 	// Check that Vars are restored to initial values
-	amountAfterReset, _ := ctx.GetVar("amount")
+	amountAfterReset, _ := engine.GetVar("amount")
 	if amountAfterReset.(float64) != 1000.0 {
 		t.Errorf("Expected amount 1000.0 after reset, got %v", amountAfterReset)
 	}
 
-	rateAfterReset, _ := ctx.GetVar("rate")
+	rateAfterReset, _ := engine.GetVar("rate")
 	if rateAfterReset.(float64) != 0.02 {
 		t.Errorf("Expected rate 0.02 after reset, got %v", rateAfterReset)
 	}
@@ -1066,7 +1068,7 @@ func TestFeeEngine_Reset(t *testing.T) {
 	}
 
 	// Check that amount is modified again
-	amountAfterReexec, _ := ctx.GetVar("amount")
+	amountAfterReexec, _ := engine.GetVar("amount")
 	if amountAfterReexec.(float64) != 2000.0 {
 		t.Errorf("Expected amount 2000.0 after re-execution, got %v", amountAfterReexec)
 	}
@@ -1171,7 +1173,7 @@ func TestFeeEngine_ResetMultipleTimes(t *testing.T) {
 		engine.Reset()
 
 		// Check that counter is reset
-		counter, _ := ctx.GetVar("counter")
+		counter, _ := engine.GetVar("counter")
 		var counterVal int
 		switch v := counter.(type) {
 		case int:
