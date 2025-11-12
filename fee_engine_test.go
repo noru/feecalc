@@ -991,3 +991,203 @@ func TestFeeEngine_ContextWithExistingFeeItems(t *testing.T) {
 		t.Errorf("Expected USD summary 150.0, got %s", usdAmount.String())
 	}
 }
+
+func TestFeeEngine_Reset(t *testing.T) {
+	ctx := &Context{
+		Vars: map[string]interface{}{
+			"amount": 1000.0,
+			"rate":   0.02,
+		},
+		FeeItems: make([]FeeItem, 0),
+	}
+	engine := New(ctx)
+
+	engine.AddRule(`$(amount * rate, "USD")`)
+	engine.AddRule(`amount = amount * 2`)
+	engine.AddRule(`$(amount * rate, "USD")`)
+
+	// Execute first 2 rules
+	result1, err := engine.ExecuteN(2)
+	if err != nil {
+		t.Fatalf("ExecuteN failed: %v", err)
+	}
+
+	if len(result1.FeeItems) != 1 {
+		t.Errorf("Expected 1 fee item before reset, got %d", len(result1.FeeItems))
+	}
+
+	// Check that amount was modified
+	amountAfter, _ := ctx.GetVar("amount")
+	if amountAfter.(float64) != 2000.0 {
+		t.Errorf("Expected amount 2000.0 after execution, got %v", amountAfter)
+	}
+
+	// Reset
+	engine.Reset()
+
+	// Check that Vars are restored to initial values
+	amountAfterReset, _ := ctx.GetVar("amount")
+	if amountAfterReset.(float64) != 1000.0 {
+		t.Errorf("Expected amount 1000.0 after reset, got %v", amountAfterReset)
+	}
+
+	rateAfterReset, _ := ctx.GetVar("rate")
+	if rateAfterReset.(float64) != 0.02 {
+		t.Errorf("Expected rate 0.02 after reset, got %v", rateAfterReset)
+	}
+
+	// Check that FeeItems are cleared
+	if len(ctx.FeeItems) != 0 {
+		t.Errorf("Expected 0 fee items after reset, got %d", len(ctx.FeeItems))
+	}
+
+	// Check that lastExecutedRule is reset
+	if ctx.lastExecutedRule != 0 {
+		t.Errorf("Expected lastExecutedRule 0 after reset, got %d", ctx.lastExecutedRule)
+	}
+
+	// Check that rules are preserved
+	if engine.GetRuleCount() != 3 {
+		t.Errorf("Expected 3 rules after reset, got %d", engine.GetRuleCount())
+	}
+
+	// Execute again from the beginning
+	result2, err := engine.Execute()
+	if err != nil {
+		t.Fatalf("Execute failed after reset: %v", err)
+	}
+
+	if result2.ProcessedRules != 3 {
+		t.Errorf("Expected 3 processed rules after reset, got %d", result2.ProcessedRules)
+	}
+
+	if len(result2.FeeItems) != 2 {
+		t.Errorf("Expected 2 fee items after reset execution, got %d", len(result2.FeeItems))
+	}
+
+	// Check that amount is modified again
+	amountAfterReexec, _ := ctx.GetVar("amount")
+	if amountAfterReexec.(float64) != 2000.0 {
+		t.Errorf("Expected amount 2000.0 after re-execution, got %v", amountAfterReexec)
+	}
+}
+
+func TestFeeEngine_ResetWithLogs(t *testing.T) {
+	ctx := &Context{
+		Vars: map[string]interface{}{
+			"amount": 1000.0,
+			"rate":   0.02,
+		},
+		FeeItems: make([]FeeItem, 0),
+	}
+	engine := New(ctx).EnableLog()
+
+	engine.AddRule(`$(amount * rate, "USD")`)
+	engine.AddRule(`amount = amount * 2`)
+
+	result1, err := engine.Execute()
+	if err != nil {
+		t.Fatalf("Execute failed: %v", err)
+	}
+
+	if len(result1.Logs) != 2 {
+		t.Errorf("Expected 2 log entries before reset, got %d", len(result1.Logs))
+	}
+
+	// Reset
+	engine.Reset()
+
+	// Check that Logs are cleared
+	if len(ctx.Logs) != 0 {
+		t.Errorf("Expected 0 log entries after reset, got %d", len(ctx.Logs))
+	}
+
+	// Execute again
+	result2, err := engine.Execute()
+	if err != nil {
+		t.Fatalf("Execute failed after reset: %v", err)
+	}
+
+	if len(result2.Logs) != 2 {
+		t.Errorf("Expected 2 log entries after reset execution, got %d", len(result2.Logs))
+	}
+}
+
+func TestFeeEngine_ResetPreservesRules(t *testing.T) {
+	ctx := &Context{
+		Vars: map[string]interface{}{
+			"amount": 1000.0,
+		},
+		FeeItems: make([]FeeItem, 0),
+	}
+	engine := New(ctx)
+
+	engine.AddRule(`$(10.0, "USD")`)
+	engine.AddRule(`$(20.0, "USD")`)
+	engine.AddRule(`$(30.0, "USD")`)
+
+	rulesBefore := engine.GetRules()
+
+	// Execute and reset
+	engine.Execute()
+	engine.Reset()
+
+	rulesAfter := engine.GetRules()
+
+	if len(rulesBefore) != len(rulesAfter) {
+		t.Errorf("Expected %d rules after reset, got %d", len(rulesBefore), len(rulesAfter))
+	}
+
+	for i, rule := range rulesBefore {
+		if i >= len(rulesAfter) || rulesAfter[i] != rule {
+			t.Errorf("Rule at index %d changed after reset: expected %s, got %s", i, rule, rulesAfter[i])
+		}
+	}
+}
+
+func TestFeeEngine_ResetMultipleTimes(t *testing.T) {
+	ctx := &Context{
+		Vars: map[string]interface{}{
+			"counter": 0,
+		},
+		FeeItems: make([]FeeItem, 0),
+	}
+	engine := New(ctx)
+
+	engine.AddRule(`counter = counter + 1; $(counter, "USD")`)
+
+	// Execute and reset multiple times
+	for i := 0; i < 3; i++ {
+		result, err := engine.Execute()
+		if err != nil {
+			t.Fatalf("Execute failed on iteration %d: %v", i, err)
+		}
+
+		if len(result.FeeItems) != 1 {
+			t.Errorf("Expected 1 fee item on iteration %d, got %d", i, len(result.FeeItems))
+		}
+
+		// Reset
+		engine.Reset()
+
+		// Check that counter is reset
+		counter, _ := ctx.GetVar("counter")
+		var counterVal int
+		switch v := counter.(type) {
+		case int:
+			counterVal = v
+		case float64:
+			counterVal = int(v)
+		default:
+			t.Fatalf("Unexpected type for counter: %T", counter)
+		}
+		if counterVal != 0 {
+			t.Errorf("Expected counter 0 after reset on iteration %d, got %d", i, counterVal)
+		}
+
+		// Check that fee items are cleared
+		if len(ctx.FeeItems) != 0 {
+			t.Errorf("Expected 0 fee items after reset on iteration %d, got %d", i, len(ctx.FeeItems))
+		}
+	}
+}

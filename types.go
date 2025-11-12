@@ -15,6 +15,7 @@ type Log struct {
 // Context holds variables and fee items during calculation
 type Context struct {
 	mu               sync.RWMutex
+	ctxJson          []byte                 `json: "-"`
 	Vars             map[string]interface{} `json:"vars"`
 	FeeItems         []FeeItem              `json:"fee_items"`
 	Logs             []Log                  `json:"logs"`

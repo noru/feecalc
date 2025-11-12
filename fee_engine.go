@@ -1,7 +1,9 @@
 package feecalc
 
 import (
+	"encoding/json"
 	"fmt"
+	"log"
 
 	"github.com/shopspring/decimal"
 )
@@ -63,12 +65,20 @@ func (c *Context) addLog(log Log) {
 func New(ctx *Context) *FeeEngine {
 	if ctx == nil {
 		ctx = &Context{
+			ctxJson:          make([]byte, 0),
 			Vars:             make(map[string]interface{}),
 			FeeItems:         make([]FeeItem, 0),
 			Logs:             make([]Log, 0),
 			lastExecutedRule: 0,
 			enableLog:        false,
 		}
+	} else {
+
+		jsonData, err := json.Marshal(ctx.Vars)
+		if err != nil {
+			log.Fatalf("Failed to marshal context: %v", err)
+		}
+		ctx.ctxJson = jsonData
 	}
 	return &FeeEngine{
 		ctx:   ctx,
@@ -84,6 +94,16 @@ func (e *FeeEngine) EnableLog() *FeeEngine {
 // AddRule adds one or more fee rules to the engine
 func (e *FeeEngine) AddRule(rules ...string) *FeeEngine {
 	e.rules = append(e.rules, rules...)
+	return e
+}
+
+func (e *FeeEngine) Reset() *FeeEngine {
+	// clear internal state, keep rules
+	e.ctx.Vars = make(map[string]interface{})
+	json.Unmarshal(e.ctx.ctxJson, &e.ctx.Vars)
+	e.ctx.FeeItems = make([]FeeItem, 0)
+	e.ctx.Logs = make([]Log, 0)
+	e.ctx.lastExecutedRule = 0
 	return e
 }
 
